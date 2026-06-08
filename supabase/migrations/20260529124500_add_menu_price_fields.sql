@@ -1,0 +1,3 @@
+ALTER TABLE public.menus
+ADD COLUMN IF NOT EXISTS price_per_kg TEXT,
+ADD COLUMN IF NOT EXISTS buffet_price TEXT;
