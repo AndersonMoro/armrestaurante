@@ -5,6 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function normalizeBrazilianWhatsAppNumber(value: string | null | undefined): string {
+  const digits = (value || "").replace(/\D/g, "");
+
+  if (!digits) return "";
+  if (digits.startsWith("55")) return digits;
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+
+  return digits;
+}
+
+export function buildWhatsAppUrl(phone: string | null | undefined, message: string): string {
+  const normalizedPhone = normalizeBrazilianWhatsAppNumber(phone);
+  const encodedMessage = encodeURIComponent(message);
+
+  return `https://wa.me/${normalizedPhone}?text=${encodedMessage}`;
+}
+
 /**
  * Converte URLs do Google Drive para URLs de visualização direta
  */

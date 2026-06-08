@@ -1,6 +1,7 @@
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import { buildWhatsAppUrl } from "@/lib/utils";
 import { Phone, Mail, MapPin, MessageCircle, Instagram, Facebook, Clock } from "lucide-react";
 
 const Contato = () => {
@@ -10,40 +11,34 @@ const Contato = () => {
     : [];
 
   const handleWhatsApp = () => {
-    const message = encodeURIComponent(`Olá! Gostaria de mais informações sobre o ${config.brand_name}.`);
-    window.open(`https://wa.me/${config.contact.whatsapp}?text=${message}`, "_blank");
+    const message = `Ola! Gostaria de mais informacoes sobre o ${config.brand_name}.`;
+    window.open(buildWhatsAppUrl(config.contact.whatsapp, message), "_blank");
   };
 
   return (
     <Layout>
-      {/* Hero */}
       <section className="bg-gradient-to-br from-primary via-primary to-primary/80 py-12 md:py-16">
         <div className="container">
           <div className="text-center">
-            <h1 className="font-display text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+            <h1 className="mb-4 font-display text-3xl font-bold text-primary-foreground md:text-4xl">
               Contato
             </h1>
             <p className="text-lg text-primary-foreground/80">
-              Entre em contato conosco, teremos prazer em atendê-lo
+              Entre em contato conosco, teremos prazer em atende-lo
             </p>
           </div>
         </div>
       </section>
 
-      {/* Content */}
       <section className="py-12 md:py-16">
         <div className="container">
-          <div className="max-w-4xl mx-auto">
+          <div className="mx-auto max-w-4xl">
             <div className="grid gap-6 md:grid-cols-2">
-              {/* Contact Info */}
-              <div className="bg-card rounded-xl shadow-card p-6 md:p-8">
-                <h2 className="font-display text-xl font-semibold mb-6">Informações de Contato</h2>
+              <div className="rounded-xl bg-card p-6 shadow-card md:p-8">
+                <h2 className="mb-6 font-display text-xl font-semibold">Informacoes de Contato</h2>
                 <div className="space-y-5">
-                  <a
-                    href={`tel:${config.contact.phone}`}
-                    className="flex items-start gap-4 group"
-                  >
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                  <a href={`tel:${config.contact.phone}`} className="group flex items-start gap-4">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                       <Phone className="h-5 w-5" />
                     </div>
                     <div>
@@ -51,11 +46,9 @@ const Contato = () => {
                       <p className="text-muted-foreground">{config.contact.phone}</p>
                     </div>
                   </a>
-                  <a
-                    href={`mailto:${config.contact.email}`}
-                    className="flex items-start gap-4 group"
-                  >
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+
+                  <a href={`mailto:${config.contact.email}`} className="group flex items-start gap-4">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
                       <Mail className="h-5 w-5" />
                     </div>
                     <div>
@@ -63,20 +56,20 @@ const Contato = () => {
                       <p className="text-muted-foreground">{config.contact.email}</p>
                     </div>
                   </a>
+
                   <div className="flex items-start gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                       <MapPin className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="font-medium">Endereço</p>
+                      <p className="font-medium">Endereco</p>
                       <p className="text-muted-foreground">{config.contact.address}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Social Media */}
-                <div className="mt-8 pt-6 border-t border-border">
-                  <h3 className="font-medium mb-4">Redes Sociais</h3>
+                <div className="mt-8 border-t border-border pt-6">
+                  <h3 className="mb-4 font-medium">Redes Sociais</h3>
                   <div className="flex gap-3">
                     {config.contact.instagram && (
                       <a
@@ -84,7 +77,7 @@ const Contato = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         referrerPolicy="no-referrer"
-                        className="h-10 w-10 rounded-lg bg-muted text-muted-foreground flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
                         aria-label="Instagram"
                       >
                         <Instagram className="h-5 w-5" />
@@ -96,7 +89,7 @@ const Contato = () => {
                         target="_blank"
                         rel="noopener noreferrer"
                         referrerPolicy="no-referrer"
-                        className="h-10 w-10 rounded-lg bg-muted text-muted-foreground flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors"
+                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors hover:bg-primary hover:text-primary-foreground"
                         aria-label="Facebook"
                       >
                         <Facebook className="h-5 w-5" />
@@ -106,48 +99,43 @@ const Contato = () => {
                 </div>
               </div>
 
-              {/* WhatsApp CTA & Hours */}
               <div className="space-y-6">
-                {/* WhatsApp */}
-                <div className="bg-card rounded-xl shadow-card p-6 md:p-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
+                <div className="rounded-xl bg-card p-6 shadow-card md:p-8">
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 text-green-600">
                       <MessageCircle className="h-5 w-5" />
                     </div>
                     <h2 className="font-display text-xl font-semibold">WhatsApp</h2>
                   </div>
-                  <p className="text-muted-foreground mb-6">
-                    Atendimento rápido pelo WhatsApp. Clique no botão abaixo para iniciar uma conversa.
+                  <p className="mb-6 text-muted-foreground">
+                    Atendimento rapido pelo WhatsApp. Clique no botao abaixo para iniciar uma conversa.
                   </p>
-                  <Button
-                    onClick={handleWhatsApp}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  >
+                  <Button onClick={handleWhatsApp} className="w-full bg-green-600 text-white hover:bg-green-700">
                     <MessageCircle className="mr-2 h-5 w-5" />
                     Chamar no WhatsApp
                   </Button>
                 </div>
 
                 {enabledHours.length > 0 && (
-                <div className="bg-card rounded-xl shadow-card p-6 md:p-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <h2 className="font-display text-xl font-semibold">Horários</h2>
-                  </div>
-                  <div className="space-y-3">
-                    {enabledHours.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center py-2 border-b border-border last:border-0"
-                      >
-                        <span className="font-medium">{item.label}</span>
-                        <span className="text-muted-foreground">{item.time}</span>
+                  <div className="rounded-xl bg-card p-6 shadow-card md:p-8">
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Clock className="h-5 w-5" />
                       </div>
-                    ))}
+                      <h2 className="font-display text-xl font-semibold">Horarios</h2>
+                    </div>
+                    <div className="space-y-3">
+                      {enabledHours.map((item, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between border-b border-border py-2 last:border-0"
+                        >
+                          <span className="font-medium">{item.label}</span>
+                          <span className="text-muted-foreground">{item.time}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
                 )}
               </div>
             </div>
