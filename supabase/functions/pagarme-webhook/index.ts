@@ -112,11 +112,63 @@ function moneyToCents(value: string) {
 
 async function notifyRestaurant(event: string, order: DinnerOrder, info: ReturnType<typeof extractPayloadInfo>) {
   const notificationUrl = Deno.env.get("RESTAURANT_NOTIFY_WEBHOOK_URL");
-  if (!notificationUrl) return;
+  const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  const twilioWhatsAppFrom = Deno.env.get("TWILIO_WHATSAPP_FROM");
+  const restaurantWhatsAppTo = Deno.env.get("RESTAURANT_WHATSAPP_TO");
+
+  if (!notificationUrl && (!twilioAccountSid || !twilioAuthToken || !twilioWhatsAppFrom || !restaurantWhatsAppTo)) {
+    return;
+  }
 
   const total = moneyToCents(order.unit_price);
+  const amount = total
+    ? ((total * order.quantity) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+    : "Nao informado";
+  const message = [
+    "Pagamento aprovado",
+    "",
+    `Cliente: ${order.buyer_name}`,
+    `WhatsApp: ${order.buyer_whatsapp}`,
+    `Jantar: ${order.dinner_events.title}`,
+    `Data: ${order.dinner_events.event_date}`,
+    `Quantidade: ${order.quantity}`,
+    `Valor: ${amount}`,
+    `Voucher: ${order.voucher_code}`,
+    `Metodo: ${info.paymentMethod || "Nao informado"}`,
+  ].join("\n");
 
-  try {
+  if (twilioAccountSid && twilioAuthToken && twilioWhatsAppFrom && restaurantWhatsAppTo) {
+    try {
+      const params = new URLSearchParams({
+        From: twilioWhatsAppFrom.startsWith("whatsapp:")
+          ? twilioWhatsAppFrom
+          : `whatsapp:${twilioWhatsAppFrom}`,
+        To: restaurantWhatsAppTo.startsWith("whatsapp:")
+          ? restaurantWhatsAppTo
+          : `whatsapp:${restaurantWhatsAppTo}`,
+        Body: message,
+      });
+
+      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: params,
+      });
+
+      if (!response.ok) {
+        console.error("twilio notification failed", await response.text());
+      }
+    } catch (error) {
+      console.error("twilio notification failed", error);
+    }
+  }
+
+  if (notificationUrl) {
+    try {
     await fetch(notificationUrl, {
       method: "POST",
       headers: {
@@ -141,8 +193,9 @@ async function notifyRestaurant(event: string, order: DinnerOrder, info: ReturnT
         pagarme: info,
       }),
     });
-  } catch (error) {
-    console.error("restaurant notification failed", error);
+    } catch (error) {
+      console.error("restaurant webhook notification failed", error);
+    }
   }
 }
 
