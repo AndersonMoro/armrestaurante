@@ -68,6 +68,42 @@ async function readJsonResponse(response: Response) {
   }
 }
 
+async function notifyRestaurant(event: string, order: DinnerOrderRow, paymentUrl: string | null) {
+  const notificationUrl = Deno.env.get("RESTAURANT_NOTIFY_WEBHOOK_URL");
+  if (!notificationUrl) return;
+
+  const total = moneyToCents(order.unit_price) * order.quantity;
+
+  try {
+    await fetch(notificationUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-notification-source": "armecardapio",
+      },
+      body: JSON.stringify({
+        event,
+        message: `Nova reserva antecipada: ${order.buyer_name} comprou ${order.quantity} jantar(es) para ${order.dinner_events.title}. Status: aguardando pagamento.`,
+        order: {
+          id: order.id,
+          voucher_code: order.voucher_code,
+          buyer_name: order.buyer_name,
+          buyer_whatsapp: order.buyer_whatsapp,
+          buyer_email: order.buyer_email,
+          quantity: order.quantity,
+          unit_price: order.unit_price,
+          total_cents: total,
+          status: order.status,
+          payment_url: paymentUrl,
+        },
+        dinner_event: order.dinner_events,
+      }),
+    });
+  } catch (error) {
+    console.error("restaurant notification failed", error);
+  }
+}
+
 Deno.serve(async (req) => {
   let orderForCleanup: DinnerOrderRow | null = null;
 
@@ -129,6 +165,8 @@ Deno.serve(async (req) => {
     }
 
     if (order.pagarme_payment_url) {
+      await notifyRestaurant("dinner_order.payment_link_reused", order, order.pagarme_payment_url);
+
       return jsonResponse({
         payment_url: order.pagarme_payment_url,
         order_id: order.id,
@@ -224,6 +262,8 @@ Deno.serve(async (req) => {
     if (updateError) {
       throw new Error(updateError.message);
     }
+
+    await notifyRestaurant("dinner_order.payment_link_created", order, paymentUrl);
 
     return jsonResponse({
       payment_url: paymentUrl,

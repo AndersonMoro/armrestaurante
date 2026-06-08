@@ -17,8 +17,18 @@ type WebhookPayload = {
 type DinnerOrder = {
   id: string;
   dinner_event_id: string;
+  buyer_name: string;
+  buyer_whatsapp: string;
+  buyer_email: string | null;
   quantity: number;
+  unit_price: string;
   status: string;
+  voucher_code: string;
+  dinner_events: {
+    title: string;
+    event_date: string;
+    purchase_deadline: string;
+  };
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
@@ -88,6 +98,54 @@ async function releaseReservedQuantity(
   if (updateError) throw new Error(updateError.message);
 }
 
+function moneyToCents(value: string) {
+  const cleaned = value
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".");
+  const amount = Number(cleaned);
+
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  return Math.round(amount * 100);
+}
+
+async function notifyRestaurant(event: string, order: DinnerOrder, info: ReturnType<typeof extractPayloadInfo>) {
+  const notificationUrl = Deno.env.get("RESTAURANT_NOTIFY_WEBHOOK_URL");
+  if (!notificationUrl) return;
+
+  const total = moneyToCents(order.unit_price);
+
+  try {
+    await fetch(notificationUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-notification-source": "armecardapio",
+      },
+      body: JSON.stringify({
+        event,
+        message: `Pagamento aprovado: ${order.buyer_name} reservou ${order.quantity} jantar(es). Voucher ${order.voucher_code}.`,
+        order: {
+          id: order.id,
+          voucher_code: order.voucher_code,
+          buyer_name: order.buyer_name,
+          buyer_whatsapp: order.buyer_whatsapp,
+          buyer_email: order.buyer_email,
+          quantity: order.quantity,
+          unit_price: order.unit_price,
+          total_cents: total ? total * order.quantity : null,
+          status: "paid",
+        },
+        dinner_event: order.dinner_events,
+        pagarme: info,
+      }),
+    });
+  } catch (error) {
+    console.error("restaurant notification failed", error);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -125,7 +183,18 @@ Deno.serve(async (req) => {
 
     const orderQuery = supabase
       .from("dinner_orders")
-      .select("id,dinner_event_id,quantity,status")
+      .select(`
+        id,
+        dinner_event_id,
+        buyer_name,
+        buyer_whatsapp,
+        buyer_email,
+        quantity,
+        unit_price,
+        status,
+        voucher_code,
+        dinner_events(title, event_date, purchase_deadline)
+      `)
       .limit(1);
 
     if (info.pagarmeOrderCode) {
@@ -189,6 +258,8 @@ Deno.serve(async (req) => {
         .in("status", ["pending", "paid"]);
 
       if (updateError) throw new Error(updateError.message);
+
+      await notifyRestaurant("dinner_order.paid", order, info);
     } else if (failedEvents.has(info.eventType)) {
       if (order.status === "pending") {
         await releaseReservedQuantity(supabase, order);
