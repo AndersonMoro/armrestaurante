@@ -1,6 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { DinnerEvent } from "@/hooks/useDinnerEvents";
+
+const RESTAURANT_SLUG = "principal";
 
 export interface CreateDinnerOrderInput {
   dinnerEventId: string;
@@ -74,8 +77,23 @@ export function useDinnerOrders() {
         payment_link_id: paymentData.payment_link_id,
       } as DinnerOrderReceipt;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dinner_events"] });
+    onSuccess: (_receipt, input) => {
+      queryClient.setQueryData<DinnerEvent[]>(["dinner_events", RESTAURANT_SLUG], (events) => {
+        if (!events) return events;
+
+        return events.map((event) =>
+          event.id === input.dinnerEventId
+            ? {
+                ...event,
+                reserved_quantity: Math.min(
+                  event.total_quantity,
+                  event.reserved_quantity + input.quantity
+                ),
+              }
+            : event
+        );
+      });
+      queryClient.invalidateQueries({ queryKey: ["dinner_events", RESTAURANT_SLUG] });
       toast({
         title: "Pagamento criado",
         description: "Acesse o link do Pagar.me para concluir a compra.",
