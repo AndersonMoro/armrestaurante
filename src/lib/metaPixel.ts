@@ -14,7 +14,7 @@ type MetaPixelFn = {
   queue: unknown[];
 };
 
-const pixelId = import.meta.env.VITE_META_PIXEL_ID;
+const pixelId = import.meta.env.VITE_META_PIXEL_ID || "2528545960939536";
 let initialized = false;
 
 export function initMetaPixel() {
