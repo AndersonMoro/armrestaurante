@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DinnerEvent } from "@/hooks/useDinnerEvents";
+import { trackMetaEvent } from "@/lib/metaPixel";
 
 const RESTAURANT_SLUG = "principal";
 
@@ -78,6 +79,13 @@ export function useDinnerOrders() {
       } as DinnerOrderReceipt;
     },
     onSuccess: (_receipt, input) => {
+      trackMetaEvent("InitiateCheckout", {
+        content_name: "Compra antecipada de jantar",
+        content_type: "product",
+        contents: [{ id: input.dinnerEventId, quantity: input.quantity }],
+        num_items: input.quantity,
+      });
+
       queryClient.setQueryData<DinnerEvent[]>(["dinner_events", RESTAURANT_SLUG], (events) => {
         if (!events) return events;
 

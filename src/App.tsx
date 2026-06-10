@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SiteConfigProvider } from "@/context/SiteConfigContext";
+import { MetaPixelTracker } from "@/components/MetaPixelTracker";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Cardapio from "./pages/Cardapio";
@@ -33,6 +34,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <MetaPixelTracker />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/cardapio" element={<Cardapio />} />
