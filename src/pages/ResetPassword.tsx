@@ -1,56 +1,50 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
-const Auth = () => {
+const ResetPassword = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isLoading, signIn, signUp, resetPassword } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    if (user) navigate('/admin');
-  }, [navigate, user]);
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setHasSession(Boolean(data.session));
+      setIsCheckingSession(false);
+    };
+
+    checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || session) {
+        setHasSession(Boolean(session));
+        setIsCheckingSession(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setIsSubmitting(true);
 
-    try {
-      const { error } = isLogin ? await signIn(email, password) : await signUp(email, password);
-      if (error) {
-        toast({
-          title: isLogin ? 'Erro ao entrar' : 'Erro ao cadastrar',
-          description: error.message,
-          variant: 'destructive',
-        });
-        return;
-      }
-
+    if (password !== confirmPassword) {
       toast({
-        title: isLogin ? 'Login realizado' : 'Conta criada',
-        description: 'Você já pode gerenciar o cardápio.',
-      });
-      navigate('/admin');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (!email) {
-      toast({
-        title: 'Informe seu email',
-        description: 'Digite o email da conta para receber o link de redefinicao.',
+        title: 'Senhas diferentes',
+        description: 'Digite a mesma senha nos dois campos.',
         variant: 'destructive',
       });
       return;
@@ -59,11 +53,11 @@ const Auth = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await resetPassword(email);
+      const { error } = await supabase.auth.updateUser({ password });
 
       if (error) {
         toast({
-          title: 'Erro ao enviar link',
+          title: 'Erro ao redefinir senha',
           description: error.message,
           variant: 'destructive',
         });
@@ -71,15 +65,16 @@ const Auth = () => {
       }
 
       toast({
-        title: 'Link enviado',
-        description: 'Confira seu email e abra o link para criar uma nova senha.',
+        title: 'Senha redefinida',
+        description: 'Sua nova senha ja pode ser usada para acessar a area admin.',
       });
+      navigate('/admin');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) {
+  if (isCheckingSession) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -94,31 +89,21 @@ const Auth = () => {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Lock className="h-7 w-7" />
           </div>
-          <h1 className="font-display text-2xl font-bold">{isLogin ? 'Área Admin' : 'Criar Conta'}</h1>
+          <h1 className="font-display text-2xl font-bold">Redefinir senha</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {isLogin ? 'Acesse para gerenciar cardápios.' : 'Crie o usuário administrador.'}
+            Crie uma nova senha para acessar a area admin.
           </p>
         </div>
 
+        {!hasSession && (
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            Link expirado ou invalido. Solicite um novo link na tela de login.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="pl-10"
-                placeholder="admin@restaurante.com"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">Nova senha</Label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -129,44 +114,52 @@ const Auth = () => {
                 className="pl-10 pr-10"
                 minLength={6}
                 required
+                disabled={!hasSession || isSubmitting}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                disabled={!hasSession || isSubmitting}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirmar senha</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="confirmPassword"
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="pl-10"
+                minLength={6}
+                required
+                disabled={!hasSession || isSubmitting}
+              />
+            </div>
+          </div>
+
+          <Button type="submit" className="w-full" disabled={!hasSession || isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLogin ? 'Entrar' : 'Criar conta'}
+            Salvar nova senha
           </Button>
         </form>
 
-        {isLogin && (
-          <button
-            type="button"
-            onClick={handleResetPassword}
-            className="mt-4 w-full text-center text-sm text-primary hover:underline"
-            disabled={isSubmitting}
-          >
-            Esqueci minha senha
-          </button>
-        )}
-
         <button
           type="button"
-          onClick={() => setIsLogin((current) => !current)}
+          onClick={() => navigate('/auth')}
           className="mt-6 w-full text-center text-sm text-primary hover:underline"
         >
-          {isLogin ? 'Não tenho conta ainda' : 'Já tenho conta'}
+          Voltar para o login
         </button>
       </div>
     </div>
   );
 };
 
-export default Auth;
+export default ResetPassword;

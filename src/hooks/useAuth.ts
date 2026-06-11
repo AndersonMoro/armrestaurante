@@ -33,6 +33,11 @@ export function useAuth() {
       options: { emailRedirectTo: window.location.origin },
     });
 
+  const resetPassword = (email: string) =>
+    supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
   const signOut = () => supabase.auth.signOut();
 
   return {
@@ -41,6 +46,7 @@ export function useAuth() {
     isLoading,
     signIn,
     signUp,
+    resetPassword,
     signOut,
   };
 }
