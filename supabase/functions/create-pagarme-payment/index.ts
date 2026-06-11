@@ -68,7 +68,32 @@ async function readJsonResponse(response: Response) {
   }
 }
 
-async function notifyRestaurant(event: string, order: DinnerOrderRow, paymentUrl: string | null) {
+async function logNotificationAttempt(
+  supabase: ReturnType<typeof createClient>,
+  payload: {
+    event: string;
+    provider: string;
+    dinner_order_id: string;
+    recipient?: string | null;
+    status_code?: number | null;
+    success: boolean;
+    response_body?: string | null;
+    error_message?: string | null;
+  },
+) {
+  try {
+    await supabase.from("notification_attempts").insert(payload);
+  } catch (error) {
+    console.error("notification attempt log failed", error);
+  }
+}
+
+async function notifyRestaurant(
+  supabase: ReturnType<typeof createClient>,
+  event: string,
+  order: DinnerOrderRow,
+  paymentUrl: string | null,
+) {
   const notificationUrl = Deno.env.get("RESTAURANT_NOTIFY_WEBHOOK_URL");
   const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
   const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
@@ -117,10 +142,39 @@ async function notifyRestaurant(event: string, order: DinnerOrderRow, paymentUrl
       });
 
       if (!response.ok) {
-        console.error("twilio notification failed", await response.text());
+        const responseText = await response.text();
+        console.error("twilio notification failed", responseText);
+        await logNotificationAttempt(supabase, {
+          event,
+          provider: "twilio_whatsapp",
+          dinner_order_id: order.id,
+          recipient: restaurantWhatsAppTo,
+          status_code: response.status,
+          success: false,
+          response_body: responseText,
+        });
+      } else {
+        const responseText = await response.text();
+        await logNotificationAttempt(supabase, {
+          event,
+          provider: "twilio_whatsapp",
+          dinner_order_id: order.id,
+          recipient: restaurantWhatsAppTo,
+          status_code: response.status,
+          success: true,
+          response_body: responseText,
+        });
       }
     } catch (error) {
       console.error("twilio notification failed", error);
+      await logNotificationAttempt(supabase, {
+        event,
+        provider: "twilio_whatsapp",
+        dinner_order_id: order.id,
+        recipient: restaurantWhatsAppTo,
+        success: false,
+        error_message: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -217,7 +271,7 @@ Deno.serve(async (req) => {
     }
 
     if (order.pagarme_payment_url) {
-      await notifyRestaurant("dinner_order.payment_link_reused", order, order.pagarme_payment_url);
+      await notifyRestaurant(supabase, "dinner_order.payment_link_reused", order, order.pagarme_payment_url);
 
       return jsonResponse({
         payment_url: order.pagarme_payment_url,
@@ -315,7 +369,7 @@ Deno.serve(async (req) => {
       throw new Error(updateError.message);
     }
 
-    await notifyRestaurant("dinner_order.payment_link_created", order, paymentUrl);
+    await notifyRestaurant(supabase, "dinner_order.payment_link_created", order, paymentUrl);
 
     return jsonResponse({
       payment_url: paymentUrl,

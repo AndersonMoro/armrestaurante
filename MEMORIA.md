@@ -1,6 +1,6 @@
 # Memoria do Projeto ARMeCardapios
 
-Ultima atualizacao: 2026-06-08
+Ultima atualizacao: 2026-06-11
 
 ## Objetivo
 
@@ -46,6 +46,35 @@ Arquivo `.env` local contem:
 
 Nao registrar chaves completas neste arquivo.
 
+### Autenticacao
+
+Fluxo atual:
+
+- `/auth`: tela de login do admin.
+- `/reset-password`: tela para redefinir senha apos abrir o link enviado pelo Supabase.
+
+Foi implementado reset de senha com:
+
+- `supabase.auth.resetPasswordForEmail`
+- redirecionamento para `/reset-password`
+- `supabase.auth.updateUser({ password })` na tela de nova senha
+- `detectSessionInUrl: true` no cliente Supabase
+
+No Supabase, manter Redirect URLs para:
+
+- `https://armecardapios-centerhotel.site/**`
+- `https://armecardapios-centerhotel.site/reset-password`
+- `http://localhost:5173/reset-password`
+- `http://127.0.0.1:5173/reset-password`
+
+Remover URLs quebradas como `https://https://...`.
+
+Cadastro publico:
+
+- A tela de login nao mostra mais opcao de criar conta.
+- O app nao expõe mais fluxo visual de `signUp`.
+- Tambem desativar no Supabase a opcao de novos cadastros por email depois de criar o usuario admin definitivo.
+
 ## Rotas principais
 
 - `/`: home com logo, cardapio do dia e compra antecipada.
@@ -64,6 +93,36 @@ Arquivos locais de marca:
 - `Gemini_Generated_Image_.png`
 
 A logo branca e usada no hero. A logo padrao e usada em outros pontos. Se `logo_url` for configurada no admin, ela pode ter prioridade em componentes que usam configuracao.
+
+Tela de login/admin:
+
+- Atualizada para identidade ARM Cardapios.
+- Titulo visual: `ARM Cardápios Admin`.
+- Subtitulo: `Acesse o painel administrativo`.
+- Tipografia: Sora via Google Fonts, com fallback system UI.
+- Cores principais: navy `#0B1325`, azul `#0057FF`, fundo `#F2F4F7`.
+- Card centralizado, branco, bordas arredondadas, sombra suave.
+- Logo ARM no topo, com icone customizado SVG de cardapio/livro aberto.
+- Campos com icones discretos de email, cadeado e olho.
+- Footer da tela de login usa a marca `ARM Cardápios`.
+
+Assets publicos adicionados/atualizados:
+
+- `public/arm-logo-transparent.png`
+- `public/arm-cardapios-footer-logo.png`
+- `public/favicon.ico`
+- `public/favicon-16x16.png`
+- `public/favicon-32x32.png`
+- `public/favicon-48x48.png`
+- `public/apple-touch-icon.png`
+- `public/icon-192x192.png`
+- `public/icon-512x512.png`
+- `public/site.webmanifest`
+
+Observacao:
+
+- Nao alterar `ARMeCardapios` em nomes tecnicos nem o dominio `armecardapios-centerhotel.site`.
+- Textos visuais devem usar `Cardápios` com acento.
 
 Hero atual:
 
@@ -296,8 +355,8 @@ O projeto local esta vinculado ao Supabase:
 Comandos executados:
 
 ```powershell
-npm.cmd run build
-npm.cmd run lint
+npm run build
+npm run lint
 ```
 
 Resultado:
@@ -305,6 +364,12 @@ Resultado:
 - Build passou.
 - Lint passou sem erros.
 - Persistem 8 warnings antigos de Fast Refresh em componentes shadcn/contexto.
+
+Ultimos commits/pushes importantes:
+
+- `866e72c Add password reset flow`
+- `8163676 Disable public account creation`
+- `7550279 Update ARM login branding`
 
 Warnings conhecidos:
 
