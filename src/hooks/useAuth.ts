@@ -26,13 +26,6 @@ export function useAuth() {
   const signIn = (email: string, password: string) =>
     supabase.auth.signInWithPassword({ email, password });
 
-  const signUp = (email: string, password: string) =>
-    supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-
   const resetPassword = (email: string) =>
     supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
@@ -45,7 +38,6 @@ export function useAuth() {
     session,
     isLoading,
     signIn,
-    signUp,
     resetPassword,
     signOut,
   };

@@ -10,8 +10,7 @@ import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
 const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, isLoading, signIn, signUp, resetPassword } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const { user, isLoading, signIn, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,10 +25,11 @@ const Auth = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = isLogin ? await signIn(email, password) : await signUp(email, password);
+      const { error } = await signIn(email, password);
+
       if (error) {
         toast({
-          title: isLogin ? 'Erro ao entrar' : 'Erro ao cadastrar',
+          title: 'Erro ao entrar',
           description: error.message,
           variant: 'destructive',
         });
@@ -37,8 +37,8 @@ const Auth = () => {
       }
 
       toast({
-        title: isLogin ? 'Login realizado' : 'Conta criada',
-        description: 'Você já pode gerenciar o cardápio.',
+        title: 'Login realizado',
+        description: 'Voce ja pode gerenciar o cardapio.',
       });
       navigate('/admin');
     } finally {
@@ -94,10 +94,8 @@ const Auth = () => {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
             <Lock className="h-7 w-7" />
           </div>
-          <h1 className="font-display text-2xl font-bold">{isLogin ? 'Área Admin' : 'Criar Conta'}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {isLogin ? 'Acesse para gerenciar cardápios.' : 'Crie o usuário administrador.'}
-          </p>
+          <h1 className="font-display text-2xl font-bold">Area Admin</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Acesse para gerenciar cardapios.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -134,6 +132,7 @@ const Auth = () => {
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                disabled={isSubmitting}
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -142,27 +141,17 @@ const Auth = () => {
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isLogin ? 'Entrar' : 'Criar conta'}
+            Entrar
           </Button>
         </form>
 
-        {isLogin && (
-          <button
-            type="button"
-            onClick={handleResetPassword}
-            className="mt-4 w-full text-center text-sm text-primary hover:underline"
-            disabled={isSubmitting}
-          >
-            Esqueci minha senha
-          </button>
-        )}
-
         <button
           type="button"
-          onClick={() => setIsLogin((current) => !current)}
-          className="mt-6 w-full text-center text-sm text-primary hover:underline"
+          onClick={handleResetPassword}
+          className="mt-4 w-full text-center text-sm text-primary hover:underline"
+          disabled={isSubmitting}
         >
-          {isLogin ? 'Não tenho conta ainda' : 'Já tenho conta'}
+          Esqueci minha senha
         </button>
       </div>
     </div>
