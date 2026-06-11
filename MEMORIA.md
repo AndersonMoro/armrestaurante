@@ -49,7 +49,7 @@ Nao registrar chaves completas neste arquivo.
 ## Rotas principais
 
 - `/`: home com logo, cardapio do dia e compra antecipada.
-- `/cardapio`: consulta de cardapios por data.
+- `/cardapio`: consulta de cardápios por data.
 - `/cardapio/:id/imprimir`: versao imprimivel.
 - `/jantares`: compra antecipada de jantares.
 - `/auth`: login.
@@ -75,7 +75,7 @@ Hero atual:
 
 ## Cardapio diario
 
-O admin permite criar cardapios por data com:
+O admin permite criar cardápios por data com:
 
 - titulo
 - data

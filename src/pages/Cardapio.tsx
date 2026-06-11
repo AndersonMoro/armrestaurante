@@ -95,7 +95,7 @@ const Cardapio = () => {
                 <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
                   <Calendar className="h-5 w-5" />
                 </div>
-                <h2 className="font-display text-xl font-semibold">Cardapios por data</h2>
+                <h2 className="font-display text-xl font-semibold">Cardápios por data</h2>
               </div>
 
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

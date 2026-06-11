@@ -206,7 +206,7 @@ export function HomeMenuSection() {
                   </p>
                   {hasOtherMenus && (
                     <Button asChild variant="outline">
-                      <Link to="/cardapio">Ver cardapios de outras datas</Link>
+                      <Link to="/cardapio">Ver cardápios de outras datas</Link>
                     </Button>
                   )}
                 </div>
