@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, Clock, CreditCard, Ticket, Users } from "lucide-react";
+import { CalendarDays, Clock, Coffee, CreditCard, Moon, Ticket, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DinnerEvent, useDinnerEvents } from "@/hooks/useDinnerEvents";
 import { DinnerOrderReceipt, useDinnerOrders } from "@/hooks/useDinnerOrders";
-import { formatDateDisplay, getBrazilTimeStorage, getBrazilTodayStorage } from "@/lib/date";
+import { formatDateDisplay, getBrazilTimeStorage, getBrazilTodayDate, getBrazilTodayStorage } from "@/lib/date";
 
 function isPurchaseClosed(event: DinnerEvent) {
   const today = getBrazilTodayStorage();
@@ -30,6 +30,8 @@ export function HomeDinnerSection() {
   const [buyerWhatsapp, setBuyerWhatsapp] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [receipt, setReceipt] = useState<DinnerOrderReceipt | null>(null);
+  const todayDay = getBrazilTodayDate().getDay();
+  const isWeekend = todayDay === 0 || todayDay === 6;
 
   const availableEvents = useMemo(
     () =>
@@ -87,7 +89,26 @@ export function HomeDinnerSection() {
           </Button>
         </div>
 
-        {isLoading ? (
+        {isWeekend ? (
+          <div className="rounded-lg border border-primary/20 bg-card p-6 shadow-card md:p-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Moon className="h-6 w-6" aria-hidden="true" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold uppercase tracking-wide text-primary">Funcionamento à noite</p>
+                <h3 className="mt-2 font-display text-2xl font-bold">Jantar somente de segunda a sexta-feira</h3>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Aos sábados e domingos, o restaurante não funciona no período da noite. O Café da Manhã permanece aberto ao público diariamente.
+                </p>
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-green-700/20 bg-green-700/10 px-4 py-2 text-sm font-semibold text-green-900">
+                  <Coffee className="h-4 w-4" aria-hidden="true" />
+                  Café da Manhã aberto todos os dias
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : isLoading ? (
           <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
             Carregando compras antecipadas...
           </div>
