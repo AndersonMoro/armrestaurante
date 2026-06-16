@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, Clock, Coffee, CreditCard, Moon, Ticket, Users } from "lucide-react";
+import { AlertCircle, CalendarDays, Clock, Coffee, CreditCard, Moon, Ticket, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -121,8 +121,8 @@ export function HomeDinnerSection() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+            <div className="grid gap-4">
               {availableEvents.slice(0, 4).map((event) => {
                 const remaining = remainingQuantity(event);
                 const closed = isPurchaseClosed(event);
@@ -136,39 +136,41 @@ export function HomeDinnerSection() {
                       setSelectedEventId(event.id);
                       setReceipt(null);
                     }}
-                    className={`rounded-lg border bg-card p-5 text-left shadow-card transition ${
+                    className={`self-start rounded-lg border bg-card p-5 text-left shadow-card transition ${
                       selected ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
+                    <div className="grid gap-5 sm:grid-cols-[1fr_auto] sm:items-start">
+                      <div className="min-w-0">
                         <h3 className="font-display text-xl font-semibold">{event.title}</h3>
                         <p className="mt-2 inline-flex items-center gap-1 text-sm text-muted-foreground">
                           <CalendarDays className="h-4 w-4" />
                           {formatDateDisplay(event.event_date)}
                         </p>
                       </div>
-                      <div className="rounded-lg bg-primary px-3 py-2 text-right text-primary-foreground">
+                      <div className="w-full rounded-lg bg-primary px-4 py-3 text-primary-foreground sm:w-32 sm:text-right">
                         <p className="text-[11px] font-semibold uppercase">antecipado</p>
-                        <p className="font-display text-xl font-bold">{event.advance_price}</p>
+                        <p className="font-display text-2xl font-bold leading-none">{event.advance_price}</p>
                       </div>
                     </div>
 
-                    {event.description && (
-                      <p className="mt-3 text-sm leading-6 text-muted-foreground">{event.description}</p>
+                    {(event.description || event.menu_summary) && (
+                      <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
+                        {event.description || event.menu_summary}
+                      </p>
                     )}
 
-                    <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1">
+                    <div className="mt-5 grid gap-2 text-xs font-medium sm:grid-cols-2 lg:grid-cols-3">
+                      <span className="inline-flex items-center justify-center gap-1 rounded-md bg-muted px-3 py-2">
                         <Clock className="h-3.5 w-3.5" />
                         ate {event.purchase_deadline}
                       </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1">
+                      <span className="inline-flex items-center justify-center gap-1 rounded-md bg-muted px-3 py-2">
                         <Users className="h-3.5 w-3.5" />
                         {remaining} vagas
                       </span>
                       {(closed || remaining === 0) && (
-                        <span className="rounded-full bg-destructive/10 px-3 py-1 text-destructive">
+                        <span className="inline-flex items-center justify-center rounded-md bg-destructive/10 px-3 py-2 text-destructive">
                           {remaining === 0 ? "Esgotado" : "Encerrado"}
                         </span>
                       )}
@@ -201,7 +203,7 @@ export function HomeDinnerSection() {
                       <p className="text-sm font-semibold text-green-950">Reserva pendente criada</p>
                       <p className="mt-2 font-display text-2xl font-bold text-green-950">{receipt.voucher_code}</p>
                       <p className="mt-2 text-sm text-green-950/80">
-                        O voucher final sera liberado depois da confirmacao do pagamento.
+                        Sua reserva ainda nao esta confirmada. O voucher final sera liberado somente depois da confirmacao do pagamento.
                       </p>
                       {receipt.payment_url && (
                         <Button asChild className="mt-4 w-full">
@@ -213,6 +215,14 @@ export function HomeDinnerSection() {
                     </div>
                   ) : (
                     <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+                      <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
+                        <div className="flex gap-2">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                          <p>
+                            A compra cria uma reserva pendente. Sua vaga so fica confirmada depois que o pagamento for aprovado.
+                          </p>
+                        </div>
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="homeBuyerName">Nome</Label>
                         <Input
@@ -258,7 +268,7 @@ export function HomeDinnerSection() {
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
-                        Pagamento pelo Pagar.me. A reserva fica pendente ate aprovar.
+                        Pagamento pelo Pagar.me. O voucher final aparece apos a aprovacao.
                       </p>
                     </form>
                   )}

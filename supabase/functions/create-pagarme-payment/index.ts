@@ -88,6 +88,74 @@ async function logNotificationAttempt(
   }
 }
 
+function formatWhatsAppRecipient(value: string | null | undefined) {
+  const digits = (value || "").replace(/\D/g, "");
+
+  if (!digits) return null;
+
+  if (digits.startsWith("55")) {
+    return `whatsapp:+${digits}`;
+  }
+
+  return `whatsapp:+55${digits}`;
+}
+
+async function sendTwilioWhatsApp(
+  supabase: ReturnType<typeof createClient>,
+  input: {
+    accountSid: string;
+    authToken: string;
+    from: string;
+    to: string;
+    body: string;
+    event: string;
+    provider: string;
+    dinnerOrderId: string;
+  },
+) {
+  try {
+    const params = new URLSearchParams({
+      From: input.from.startsWith("whatsapp:") ? input.from : `whatsapp:${input.from}`,
+      To: input.to.startsWith("whatsapp:") ? input.to : `whatsapp:${input.to}`,
+      Body: input.body,
+    });
+
+    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${input.accountSid}/Messages.json`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${input.accountSid}:${input.authToken}`)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params,
+    });
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      console.error("twilio notification failed", responseText);
+    }
+
+    await logNotificationAttempt(supabase, {
+      event: input.event,
+      provider: input.provider,
+      dinner_order_id: input.dinnerOrderId,
+      recipient: input.to,
+      status_code: response.status,
+      success: response.ok,
+      response_body: responseText,
+    });
+  } catch (error) {
+    console.error("twilio notification failed", error);
+    await logNotificationAttempt(supabase, {
+      event: input.event,
+      provider: input.provider,
+      dinner_order_id: input.dinnerOrderId,
+      recipient: input.to,
+      success: false,
+      error_message: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
 async function notifyRestaurant(
   supabase: ReturnType<typeof createClient>,
   event: string,
@@ -117,65 +185,56 @@ async function notifyRestaurant(
     `Valor: ${amount}`,
     `Voucher: ${order.voucher_code}`,
     "Status: aguardando pagamento",
-    paymentUrl ? `Pagamento: ${paymentUrl}` : null,
+  ].filter(Boolean).join("\n");
+
+  const buyerTo = formatWhatsAppRecipient(order.buyer_whatsapp);
+  const buyerMessage = [
+    `Ola, ${order.buyer_name}!`,
+    "",
+    "Sua reserva antecipada foi criada.",
+    `Jantar: ${order.dinner_events.title}`,
+    `Data: ${order.dinner_events.event_date}`,
+    `Quantidade: ${order.quantity}`,
+    `Valor: ${amount}`,
+    `Voucher: ${order.voucher_code}`,
+    "",
+    "Para confirmar, conclua o pagamento:",
+    paymentUrl,
   ].filter(Boolean).join("\n");
 
   if (twilioAccountSid && twilioAuthToken && twilioWhatsAppFrom && restaurantWhatsAppTo) {
-    try {
-      const params = new URLSearchParams({
-        From: twilioWhatsAppFrom.startsWith("whatsapp:")
-          ? twilioWhatsAppFrom
-          : `whatsapp:${twilioWhatsAppFrom}`,
-        To: restaurantWhatsAppTo.startsWith("whatsapp:")
-          ? restaurantWhatsAppTo
-          : `whatsapp:${restaurantWhatsAppTo}`,
-        Body: message,
-      });
+    await sendTwilioWhatsApp(supabase, {
+      accountSid: twilioAccountSid,
+      authToken: twilioAuthToken,
+      from: twilioWhatsAppFrom,
+      to: restaurantWhatsAppTo,
+      body: message,
+      event,
+      provider: "twilio_whatsapp_restaurant",
+      dinnerOrderId: order.id,
+    });
+  }
 
-      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`, {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${btoa(`${twilioAccountSid}:${twilioAuthToken}`)}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params,
-      });
-
-      if (!response.ok) {
-        const responseText = await response.text();
-        console.error("twilio notification failed", responseText);
-        await logNotificationAttempt(supabase, {
-          event,
-          provider: "twilio_whatsapp",
-          dinner_order_id: order.id,
-          recipient: restaurantWhatsAppTo,
-          status_code: response.status,
-          success: false,
-          response_body: responseText,
-        });
-      } else {
-        const responseText = await response.text();
-        await logNotificationAttempt(supabase, {
-          event,
-          provider: "twilio_whatsapp",
-          dinner_order_id: order.id,
-          recipient: restaurantWhatsAppTo,
-          status_code: response.status,
-          success: true,
-          response_body: responseText,
-        });
-      }
-    } catch (error) {
-      console.error("twilio notification failed", error);
-      await logNotificationAttempt(supabase, {
-        event,
-        provider: "twilio_whatsapp",
-        dinner_order_id: order.id,
-        recipient: restaurantWhatsAppTo,
-        success: false,
-        error_message: error instanceof Error ? error.message : String(error),
-      });
-    }
+  if (twilioAccountSid && twilioAuthToken && twilioWhatsAppFrom && buyerTo && paymentUrl) {
+    await sendTwilioWhatsApp(supabase, {
+      accountSid: twilioAccountSid,
+      authToken: twilioAuthToken,
+      from: twilioWhatsAppFrom,
+      to: buyerTo,
+      body: buyerMessage,
+      event: "dinner_order.payment_link_sent_to_buyer",
+      provider: "twilio_whatsapp_buyer",
+      dinnerOrderId: order.id,
+    });
+  } else if (paymentUrl && !buyerTo) {
+    await logNotificationAttempt(supabase, {
+      event: "dinner_order.payment_link_sent_to_buyer",
+      provider: "twilio_whatsapp_buyer",
+      dinner_order_id: order.id,
+      recipient: order.buyer_whatsapp,
+      success: false,
+      error_message: "buyer_whatsapp invalido para envio via WhatsApp",
+    });
   }
 
   if (notificationUrl) {

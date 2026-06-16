@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -11,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useMenus, MenuPDF } from "@/hooks/useMenus";
 import { useEventQuotes, EventQuote, EventQuoteOption, EventQuoteStatus } from "@/hooks/useEventQuotes";
-import { useDinnerEvents, DinnerEvent } from "@/hooks/useDinnerEvents";
+import { useDinnerEvents, DinnerEvent, DinnerEventInput } from "@/hooks/useDinnerEvents";
 import { useSiteConfigDB } from "@/hooks/useSiteConfigDB";
 import { formatDateDisplay, formatDateStorage } from "@/lib/date";
 import { useToast } from "@/hooks/use-toast";
@@ -34,6 +35,7 @@ import {
   Printer,
   ClipboardList,
   Utensils,
+  Wand2,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -113,6 +115,38 @@ const createQuoteOption = (index: number): EventQuoteOption => ({
 
 const createDefaultQuoteOptions = () => [0, 1, 2].map((index) => createQuoteOption(index));
 
+const dinnerWeekdays = [
+  { value: 1, label: "Seg" },
+  { value: 2, label: "Ter" },
+  { value: 3, label: "Qua" },
+  { value: 4, label: "Qui" },
+  { value: 5, label: "Sex" },
+  { value: 6, label: "Sab" },
+  { value: 0, label: "Dom" },
+];
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function menuSummaryFromMenu(menu: MenuPDF) {
+  const categorySummary = (menu.categories || [])
+    .map((category) => {
+      const items = category.items
+        .filter((item) => item.available && item.name.trim())
+        .map((item) => item.name.trim())
+        .slice(0, 4);
+
+      return items.length ? `${category.name}: ${items.join(", ")}` : "";
+    })
+    .filter(Boolean)
+    .join(" | ");
+
+  return categorySummary || menu.notes || "";
+}
+
 const Admin = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -140,9 +174,11 @@ const Admin = () => {
     dinnerEvents,
     isLoading: dinnerEventsLoading,
     addDinnerEvent,
+    addDinnerEventsBulk,
     updateDinnerEvent,
     deleteDinnerEvent,
     isAddingDinnerEvent,
+    isAddingDinnerEventsBulk,
     isUpdatingDinnerEvent,
   } = useDinnerEvents();
   const { config, isLoading: configLoading, updateConfig, isUpdating } = useSiteConfigDB();
@@ -183,6 +219,16 @@ const Admin = () => {
   const [dinnerPurchaseDeadline, setDinnerPurchaseDeadline] = useState("17:00");
   const [dinnerActive, setDinnerActive] = useState(true);
   const [editingDinnerId, setEditingDinnerId] = useState<string | null>(null);
+  const [dinnerBatchStartDate, setDinnerBatchStartDate] = useState<Date | undefined>(new Date());
+  const [dinnerBatchEndDate, setDinnerBatchEndDate] = useState<Date | undefined>(addDays(new Date(), 14));
+  const [dinnerBatchWeekdays, setDinnerBatchWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [dinnerBatchRegularPrice, setDinnerBatchRegularPrice] = useState("");
+  const [dinnerBatchAdvancePrice, setDinnerBatchAdvancePrice] = useState("");
+  const [dinnerBatchTotalQuantity, setDinnerBatchTotalQuantity] = useState("10");
+  const [dinnerBatchPurchaseDeadline, setDinnerBatchPurchaseDeadline] = useState("17:00");
+  const [dinnerBatchDescription, setDinnerBatchDescription] = useState(
+    "Reserve seu jantar pelo site, garanta sua vaga com desconto especial"
+  );
 
   // Local config state for form
   const [brandName, setBrandName] = useState("");
@@ -520,8 +566,13 @@ const Admin = () => {
       return;
     }
 
+    const dinnerDateString = formatDateStorage(dinnerDate);
+    const hasActiveMenuForDinnerDate = menus.some((menu) => menu.active && menu.date === dinnerDateString);
+
+    const shouldWaitForMenu = dinnerActive && !hasActiveMenuForDinnerDate;
+
     const payload = {
-      event_date: formatDateStorage(dinnerDate),
+      event_date: dinnerDateString,
       title: dinnerTitle.trim(),
       description: dinnerDescription.trim(),
       menu_summary: dinnerMenuSummary.trim(),
@@ -530,13 +581,21 @@ const Admin = () => {
       total_quantity: totalQuantity,
       reserved_quantity: reservedQuantity,
       purchase_deadline: dinnerPurchaseDeadline || "17:00",
-      active: dinnerActive,
+      active: shouldWaitForMenu ? false : dinnerActive,
+      auto_activate_on_menu: shouldWaitForMenu,
     };
 
     if (editingDinnerId) {
       updateDinnerEvent(editingDinnerId, payload);
     } else {
       addDinnerEvent(payload);
+    }
+
+    if (shouldWaitForMenu) {
+      toast({
+        title: "Jantar em espera",
+        description: "Ele sera ativado automaticamente quando o cardapio dessa data for cadastrado.",
+      });
     }
 
     resetDinnerForm();
@@ -552,12 +611,128 @@ const Admin = () => {
     setDinnerTotalQuantity(String(event.total_quantity));
     setDinnerReservedQuantity(String(event.reserved_quantity));
     setDinnerPurchaseDeadline(event.purchase_deadline || "17:00");
-    setDinnerActive(event.active);
+    setDinnerActive(event.active || event.auto_activate_on_menu);
     setEditingDinnerId(event.id);
   };
 
   const handleDeleteDinnerEvent = (id: string) => {
     deleteDinnerEvent(id);
+  };
+
+  const toggleDinnerBatchWeekday = (weekday: number) => {
+    setDinnerBatchWeekdays((current) =>
+      current.includes(weekday)
+        ? current.filter((day) => day !== weekday)
+        : [...current, weekday]
+    );
+  };
+
+  const handleGenerateDinnerEventsFromMenus = async () => {
+    const totalQuantity = Number(dinnerBatchTotalQuantity);
+
+    if (!dinnerBatchStartDate || !dinnerBatchEndDate) {
+      toast({
+        title: "Periodo obrigatorio",
+        description: "Informe a data inicial e final para gerar os jantares.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (dinnerBatchEndDate < dinnerBatchStartDate) {
+      toast({
+        title: "Periodo invalido",
+        description: "A data final precisa ser igual ou posterior a data inicial.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (dinnerBatchWeekdays.length === 0) {
+      toast({
+        title: "Selecione os dias",
+        description: "Escolha pelo menos um dia da semana para liberar a compra.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!dinnerBatchAdvancePrice.trim()) {
+      toast({
+        title: "Valor antecipado obrigatorio",
+        description: "Informe o valor antecipado usado nos dias selecionados.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (Number.isNaN(totalQuantity) || totalQuantity <= 0) {
+      toast({
+        title: "Quantidade invalida",
+        description: "Informe uma quantidade disponivel maior que zero.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const activeMenusByDate = new Map(
+      menus
+        .filter((menu) => menu.active)
+        .map((menu) => [menu.date, menu])
+    );
+    const existingDinnerDates = new Set(dinnerEvents.map((event) => event.event_date));
+    const payloads: DinnerEventInput[] = [];
+    let waitingForMenu = 0;
+    let skippedExisting = 0;
+
+    for (let current = new Date(dinnerBatchStartDate); current <= dinnerBatchEndDate; current = addDays(current, 1)) {
+      if (!dinnerBatchWeekdays.includes(current.getDay())) continue;
+
+      const date = formatDateStorage(current);
+      const menu = activeMenusByDate.get(date);
+
+      if (existingDinnerDates.has(date)) {
+        skippedExisting += 1;
+        continue;
+      }
+
+      if (!menu) {
+        waitingForMenu += 1;
+      }
+
+      payloads.push({
+        event_date: date,
+        title: menu?.title || `Jantar ${formatDateDisplay(date)}`,
+        description: dinnerBatchDescription.trim(),
+        menu_summary: menu ? menuSummaryFromMenu(menu) : "",
+        regular_price: dinnerBatchRegularPrice.trim(),
+        advance_price: dinnerBatchAdvancePrice.trim(),
+        total_quantity: totalQuantity,
+        reserved_quantity: 0,
+        purchase_deadline: dinnerBatchPurchaseDeadline || "17:00",
+        active: Boolean(menu),
+        auto_activate_on_menu: !menu,
+      });
+    }
+
+    if (payloads.length === 0) {
+      toast({
+        title: "Nenhum jantar gerado",
+        description: `As datas selecionadas ja possuem jantar cadastrado ou nao atendem aos dias escolhidos. Ja cadastrados: ${skippedExisting}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await addDinnerEventsBulk(payloads);
+      toast({
+        title: "Regra aplicada",
+        description: `${payloads.length} jantar(es) criado(s). Em espera por cardapio: ${waitingForMenu}. Ja cadastrados: ${skippedExisting}.`,
+      });
+    } catch {
+      // The hook shows the provider error toast.
+    }
   };
 
   const addCategory = () => {
@@ -1306,11 +1481,171 @@ const Admin = () => {
           {/* Advance Dinner Sales Tab */}
           <TabsContent value="dinners" className="space-y-6">
             <div className="bg-card rounded-xl shadow-card p-6">
+              <div className="mb-5 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Wand2 className="h-5 w-5 text-primary" />
+                    <h2 className="font-display text-lg font-semibold">Gerar jantares por cardapios</h2>
+                  </div>
+                  <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                    Configure uma regra por dias da semana. Datas sem cardapio ficam em espera e ativam automaticamente quando o cardapio for cadastrado.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-medium text-primary">
+                  Sem cardapio ativo, o cliente ainda nao ve a data.
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label>Data inicial</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dinnerBatchStartDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dinnerBatchStartDate ? format(dinnerBatchStartDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dinnerBatchStartDate}
+                        onSelect={setDinnerBatchStartDate}
+                        locale={ptBR}
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data final</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !dinnerBatchEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dinnerBatchEndDate ? format(dinnerBatchEndDate, "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dinnerBatchEndDate}
+                        onSelect={setDinnerBatchEndDate}
+                        locale={ptBR}
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dinnerBatchRegularPrice">Valor no dia</Label>
+                  <Input
+                    id="dinnerBatchRegularPrice"
+                    value={dinnerBatchRegularPrice}
+                    onChange={(e) => setDinnerBatchRegularPrice(e.target.value)}
+                    placeholder="Ex: R$ 49,90"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dinnerBatchAdvancePrice">Valor antecipado</Label>
+                  <Input
+                    id="dinnerBatchAdvancePrice"
+                    value={dinnerBatchAdvancePrice}
+                    onChange={(e) => setDinnerBatchAdvancePrice(e.target.value)}
+                    placeholder="Ex: R$ 39,90"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-[1fr_180px_180px]">
+                <div className="space-y-2">
+                  <Label>Dias liberados</Label>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                    {dinnerWeekdays.map((day) => {
+                      const checked = dinnerBatchWeekdays.includes(day.value);
+
+                      return (
+                        <label
+                          key={day.value}
+                          className={cn(
+                            "flex h-10 cursor-pointer items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium",
+                            checked ? "border-primary bg-primary/10 text-primary" : "border-border bg-background"
+                          )}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleDinnerBatchWeekday(day.value)}
+                          />
+                          {day.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dinnerBatchTotalQuantity">Quantidade</Label>
+                  <Input
+                    id="dinnerBatchTotalQuantity"
+                    type="number"
+                    min="1"
+                    value={dinnerBatchTotalQuantity}
+                    onChange={(e) => setDinnerBatchTotalQuantity(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dinnerBatchPurchaseDeadline">Comprar ate</Label>
+                  <Input
+                    id="dinnerBatchPurchaseDeadline"
+                    type="time"
+                    value={dinnerBatchPurchaseDeadline}
+                    onChange={(e) => setDinnerBatchPurchaseDeadline(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                <Label htmlFor="dinnerBatchDescription">Descricao padrao</Label>
+                <Textarea
+                  id="dinnerBatchDescription"
+                  value={dinnerBatchDescription}
+                  onChange={(e) => setDinnerBatchDescription(e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button onClick={handleGenerateDinnerEventsFromMenus} disabled={isAddingDinnerEventsBulk}>
+                  {isAddingDinnerEventsBulk ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="mr-2 h-4 w-4" />
+                  )}
+                  Gerar pelas datas com cardapio
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Datas ja cadastradas em Jantares sao ignoradas para evitar duplicidade.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl shadow-card p-6">
               <h2 className="font-display text-lg font-semibold mb-2">
                 {editingDinnerId ? "Editar jantar antecipado" : "Novo jantar antecipado"}
               </h2>
               <p className="mb-6 text-sm text-muted-foreground">
-                Configure a quantidade disponivel, preco antecipado e horario limite de compra.
+                Configure uma data especifica. Se ainda nao houver cardapio, o jantar fica em espera ate o cardapio ser cadastrado.
               </p>
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -1408,7 +1743,7 @@ const Admin = () => {
                   <Label>Status</Label>
                   <div className="flex items-center gap-3 h-10">
                     <Switch checked={dinnerActive} onCheckedChange={setDinnerActive} />
-                    <span className="text-sm">{dinnerActive ? "Ativo" : "Inativo"}</span>
+                    <span className="text-sm">{dinnerActive ? "Ativar quando possivel" : "Inativo"}</span>
                   </div>
                 </div>
               </div>
@@ -1508,11 +1843,18 @@ const Admin = () => {
                               <span
                                 className={cn(
                                   "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
-                                  event.active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                                  event.auto_activate_on_menu
+                                    ? "bg-amber-100 text-amber-800"
+                                    : event.active
+                                      ? "bg-green-100 text-green-700"
+                                      : "bg-gray-100 text-gray-600"
                                 )}
                               >
-                                {event.active ? "Ativo" : "Inativo"}
+                                {event.auto_activate_on_menu ? "Em espera" : event.active ? "Ativo" : "Inativo"}
                               </span>
+                              {event.auto_activate_on_menu && (
+                                <p className="mt-1 text-xs text-muted-foreground">Aguardando cardapio</p>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex justify-end gap-2">

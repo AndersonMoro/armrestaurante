@@ -178,6 +178,7 @@ export function useMenus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus', RESTAURANT_SLUG] });
+      queryClient.invalidateQueries({ queryKey: ['dinner_events', RESTAURANT_SLUG] });
       toast({
         title: 'Cardápio cadastrado',
         description: 'O novo cardápio foi salvo no Supabase.',
@@ -212,6 +213,7 @@ export function useMenus() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['menus', RESTAURANT_SLUG] });
+      queryClient.invalidateQueries({ queryKey: ['dinner_events', RESTAURANT_SLUG] });
       toast({
         title: 'Cardápio atualizado',
         description: 'As alterações foram salvas no Supabase.',

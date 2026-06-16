@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Clock, Ticket, Users } from "lucide-react";
+import { AlertCircle, CalendarDays, Clock, Ticket, Users } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -181,7 +181,7 @@ export default function Jantares() {
                           {receipt.voucher_code}
                         </p>
                         <p className="mt-2 text-sm text-green-950/80">
-                          O voucher so sera liberado apos confirmacao do pagamento.
+                          Sua reserva ainda nao esta confirmada. O voucher so sera liberado apos confirmacao do pagamento.
                         </p>
                         {receipt.payment_url && (
                           <Button asChild className="mt-4 w-full">
@@ -193,6 +193,14 @@ export default function Jantares() {
                       </div>
                     ) : (
                       <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+                        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground">
+                          <div className="flex gap-2">
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                            <p>
+                              A compra cria uma reserva pendente. A vaga so fica confirmada depois que o pagamento for aprovado.
+                            </p>
+                          </div>
+                        </div>
                         <div className="space-y-2">
                           <Label htmlFor="buyerName">Nome</Label>
                           <Input
@@ -262,7 +270,7 @@ export default function Jantares() {
                           </p>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          A reserva fica pendente ate o pagamento ser aprovado pelo Pagar.me.
+                          O pagamento e feito pelo Pagar.me. O voucher final aparece apos a aprovacao.
                         </p>
                       </form>
                     )}

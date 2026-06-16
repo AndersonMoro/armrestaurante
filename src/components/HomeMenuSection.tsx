@@ -64,10 +64,10 @@ export function HomeMenuSection() {
                 O cardápio muda conforme a cozinha, os ingredientes e o melhor do dia. A essência fica:
                 sabor caseiro, cuidado no preparo e aquele jeito de mesa cheia.
               </p>
-              <div className="mx-auto mt-4 flex max-w-[180px] overflow-hidden rounded-full border border-border text-xs font-semibold">
-                <span className="flex-1 bg-green-700 px-3 py-2 text-white">origem</span>
-                <span className="flex-1 bg-background px-3 py-2 text-foreground">família</span>
-                <span className="flex-1 bg-red-700 px-3 py-2 text-white">sabor</span>
+              <div className="mx-auto mt-4 grid w-full max-w-[224px] grid-cols-3 overflow-hidden rounded-full border border-border text-center text-xs font-semibold">
+                <span className="min-w-0 whitespace-nowrap bg-green-700 px-3 py-2 text-white">origem</span>
+                <span className="min-w-0 whitespace-nowrap bg-background px-3 py-2 text-foreground">família</span>
+                <span className="min-w-0 whitespace-nowrap bg-red-700 px-3 py-2 text-white">sabor</span>
               </div>
             </div>
           </aside>

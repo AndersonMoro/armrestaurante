@@ -212,6 +212,9 @@ Regra:
 - Ao criar uma reserva/compra, a vaga e ocupada enquanto o status estiver `pending` ou `paid`.
 - Se o pagamento falhar ou cancelar, o webhook libera a vaga.
 - A contagem foi reforcada com a migration `20260608143000_recalculate_dinner_reserved_quantity.sql`, que recalcula `reserved_quantity` pelos pedidos `pending` e `paid`.
+- Jantares podem ficar em espera quando ainda nao existe cardapio ativo para a data.
+- Quando um cardapio ativo e cadastrado/ativado para a mesma data, o Supabase ativa automaticamente os jantares em espera daquela data.
+- No admin, a geracao por periodo/dias da semana cria jantares ativos para datas com cardapio e cria jantares em espera para datas ainda sem cardapio.
 
 ## Pagar.me / Stone
 
@@ -285,11 +288,13 @@ Observacao de teste:
 Objetivo:
 
 - notificar automaticamente o restaurante quando existir compra antecipada.
+- enviar o link de pagamento ao comprador quando o WhatsApp Sender estiver pronto.
 
 Implementado:
 
-- aviso na criacao do link de pagamento
-- aviso quando webhook Pagar.me confirma pagamento aprovado
+- aviso ao restaurante na criacao do link de pagamento, sem link de pagamento
+- envio do link de pagamento para o WhatsApp do comprador pela function `create-pagarme-payment`
+- aviso ao restaurante quando webhook Pagar.me confirma pagamento aprovado
 
 Edge Functions que enviam Twilio:
 
@@ -315,17 +320,21 @@ O numero `+5549999220942` foi usado como numero pessoal de teste do Anderson, na
 Para o Sandbox funcionar:
 
 - O numero que recebe precisa enviar o codigo `join ...` para o numero da Twilio.
-- Enquanto estiver em teste, todas as compras podem avisar apenas o WhatsApp pessoal.
+- Enquanto estiver em teste, todas as compras devem avisar apenas o WhatsApp pessoal/restaurante.
+- Comprador real nao recebe WhatsApp automatico no Sandbox, a menos que tambem tenha entrado no Sandbox com `join ...`.
+- Por enquanto, o comprador deve concluir pelo botao `Ir para pagamento` exibido no site.
 
 Resultado confirmado:
 
-- Aviso de nova compra antecipada chegou no WhatsApp com cliente, quantidade, valor, voucher e link de pagamento.
+- Aviso de nova compra antecipada chegou no WhatsApp do restaurante com cliente, quantidade, valor e voucher.
+- O link de pagamento nao deve ir para o restaurante; deve ir apenas para o comprador quando o envio ao comprador estiver habilitado fora do Sandbox.
 
 Para producao:
 
 - Solicitar aprovacao de WhatsApp Sender na Twilio.
 - Caminho: Twilio Console > Messaging > Senders > WhatsApp Senders.
 - Depois trocar `TWILIO_WHATSAPP_FROM` para o numero oficial aprovado.
+- Revisar regras/templates da Twilio/WhatsApp para envio ativo de link de pagamento ao comprador.
 - A aprovacao pode levar horas ou dias.
 
 ## Migrations aplicadas
@@ -381,7 +390,7 @@ Warnings conhecidos:
 
 1. Testar nova compra depois da migration de vagas e confirmar que 5 vira 4.
 2. Testar webhook Pagar.me apos pagamento aprovado.
-3. Confirmar se o segundo WhatsApp chega quando pedido vira `paid`.
+3. Confirmar se o WhatsApp de pagamento aprovado chega para o restaurante quando pedido vira `paid`.
 4. Configurar WhatsApp Sender de producao na Twilio quando sair do Sandbox.
 5. Criar painel no admin para listar compras/reservas de jantares.
 6. Criar acao admin para marcar voucher como usado.

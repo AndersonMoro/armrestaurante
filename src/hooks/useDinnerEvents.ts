@@ -16,8 +16,11 @@ export interface DinnerEvent {
   reserved_quantity: number;
   purchase_deadline: string;
   active: boolean;
+  auto_activate_on_menu: boolean;
   created_at: string;
 }
+
+export type DinnerEventInput = Omit<DinnerEvent, "id" | "created_at">;
 
 type DinnerEventRow = {
   id: string;
@@ -31,6 +34,7 @@ type DinnerEventRow = {
   reserved_quantity: number | null;
   purchase_deadline: string | null;
   active: boolean | null;
+  auto_activate_on_menu?: boolean | null;
   created_at: string | null;
 };
 
@@ -47,6 +51,7 @@ function mapDinnerEvent(row: DinnerEventRow): DinnerEvent {
     reserved_quantity: row.reserved_quantity || 0,
     purchase_deadline: (row.purchase_deadline || "17:00").slice(0, 5),
     active: row.active !== false,
+    auto_activate_on_menu: row.auto_activate_on_menu === true,
     created_at: row.created_at || "",
   };
 }
@@ -82,7 +87,7 @@ export function useDinnerEvents() {
   });
 
   const addDinnerEventMutation = useMutation({
-    mutationFn: async (event: Omit<DinnerEvent, "id" | "created_at">) => {
+    mutationFn: async (event: DinnerEventInput) => {
       const restaurantId = await getRestaurantId();
       const { error } = await supabase.from("dinner_events").insert({
         restaurant_id: restaurantId,
@@ -96,6 +101,7 @@ export function useDinnerEvents() {
         reserved_quantity: event.reserved_quantity,
         purchase_deadline: event.purchase_deadline,
         active: event.active,
+        auto_activate_on_menu: event.auto_activate_on_menu,
       });
 
       if (error) throw error;
@@ -110,6 +116,42 @@ export function useDinnerEvents() {
     onError: (error) => {
       toast({
         title: "Erro ao salvar jantar",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const addDinnerEventsBulkMutation = useMutation({
+    mutationFn: async (events: DinnerEventInput[]) => {
+      if (events.length === 0) return 0;
+
+      const restaurantId = await getRestaurantId();
+      const rows = events.map((event) => ({
+        restaurant_id: restaurantId,
+        event_date: event.event_date,
+        title: event.title,
+        description: event.description || null,
+        menu_summary: event.menu_summary || null,
+        regular_price: event.regular_price || null,
+        advance_price: event.advance_price,
+        total_quantity: event.total_quantity,
+        reserved_quantity: event.reserved_quantity,
+        purchase_deadline: event.purchase_deadline,
+        active: event.active,
+        auto_activate_on_menu: event.auto_activate_on_menu,
+      }));
+      const { error } = await supabase.from("dinner_events").insert(rows);
+
+      if (error) throw error;
+      return events.length;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dinner_events", RESTAURANT_SLUG] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao gerar jantares",
         description: error.message,
         variant: "destructive",
       });
@@ -131,6 +173,7 @@ export function useDinnerEvents() {
           reserved_quantity: updates.reserved_quantity,
           purchase_deadline: updates.purchase_deadline,
           active: updates.active,
+          auto_activate_on_menu: updates.auto_activate_on_menu,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -178,10 +221,12 @@ export function useDinnerEvents() {
     dinnerEvents: dinnerEventsQuery.data ?? [],
     isLoading: dinnerEventsQuery.isLoading,
     addDinnerEvent: addDinnerEventMutation.mutate,
+    addDinnerEventsBulk: addDinnerEventsBulkMutation.mutateAsync,
     updateDinnerEvent: (id: string, updates: Partial<DinnerEvent>) =>
       updateDinnerEventMutation.mutate({ id, updates }),
     deleteDinnerEvent: deleteDinnerEventMutation.mutate,
     isAddingDinnerEvent: addDinnerEventMutation.isPending,
+    isAddingDinnerEventsBulk: addDinnerEventsBulkMutation.isPending,
     isUpdatingDinnerEvent: updateDinnerEventMutation.isPending,
     isDeletingDinnerEvent: deleteDinnerEventMutation.isPending,
   };
